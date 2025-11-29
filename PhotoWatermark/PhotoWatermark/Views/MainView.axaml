@@ -1,0 +1,117 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:PhotoWatermark.ViewModels"
+			 xmlns:converters="clr-namespace:PhotoWatermark.Converters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="PhotoWatermark.Views.MainView"
+             x:DataType="vm:MainViewModel">
+
+	<UserControl.Resources>
+		<converters:ExposureTimeConverter x:Key="ExposureTimeConverter"/>
+	</UserControl.Resources>
+
+	<Design.DataContext>
+		<!-- This only sets the DataContext for the previewer in an IDE,
+          to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+		<vm:MainViewModel />
+	</Design.DataContext>
+
+	<StackPanel>
+
+		<!--<TextBlock Margin="0 10" x:Name="message">Ready...</TextBlock>-->
+
+		<StackPanel Orientation="Horizontal">
+			<Panel>
+				<Rectangle Height="320" Width="420" Fill="LightGray"></Rectangle>
+				<Image Margin="20" Height="300" Width="400"
+					   Stretch="Uniform"
+					   Source="{Binding SelectedImage.Image^}"/>
+			</Panel>
+
+			<Panel>
+				<Rectangle Height="320" Width="420" Fill="LightGray"></Rectangle>
+				<Image Margin="20" Height="300" Width="400"
+					   Stretch="Uniform"
+					   Source="{Binding PreviewImage}"/>
+			</Panel>
+
+
+			<StackPanel>
+				<TextBlock>
+					<Run>名字	</Run>
+					<Run Text="{Binding SelectedImage.Name}"/>
+				</TextBlock>
+				<TextBlock>
+					<Run>厂商	</Run>
+					<Run Text="{Binding SelectedImage.Make}"/>
+				</TextBlock>
+				<TextBlock>
+					<Run>相机	</Run>
+					<Run Text="{Binding SelectedImage.Model}"/>
+				</TextBlock>
+				<TextBlock>
+					<Run>镜头	</Run>
+					<Run Text="{Binding SelectedImage.LensModel}"/>
+				</TextBlock>
+				<TextBlock>
+					<Run>光圈	f/</Run>
+					<Run Text="{Binding SelectedImage.FNumber}"/>
+				</TextBlock>
+				<TextBlock>
+					<Run>快门	</Run>
+					<Run Text="{Binding SelectedImage.ExposureTime, Converter={StaticResource ExposureTimeConverter}, Mode=OneWay}"/>
+					<Run> s</Run>
+				</TextBlock>
+				<TextBlock>
+					<Run>感光度	</Run>
+					<Run Text="{Binding SelectedImage.ISOSpeedRatings}"/>
+				</TextBlock>
+				<TextBlock>
+					<Run>焦段	</Run>
+					<Run Text="{Binding SelectedImage.FocalLength}"/>
+					<Run> mm</Run>
+				</TextBlock>
+				<TextBlock>
+					<Run>日期	</Run>
+					<Run Text="{Binding SelectedImage.Date}"/>
+				</TextBlock>
+			</StackPanel>
+
+		</StackPanel>
+
+		<!-- 在您的窗口或用户控件中 -->
+		<ListBox x:Name="Images" ItemsSource="{Binding Images}" SelectedItem="{Binding SelectedImage}"
+				 SelectionChanged="Images_SelectionChanged"
+				 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+				 ScrollViewer.VerticalScrollBarVisibility="Disabled">
+
+			<ListBox.ItemsPanel>
+				<ItemsPanelTemplate>
+					<StackPanel Orientation="Horizontal" />
+				</ItemsPanelTemplate>
+			</ListBox.ItemsPanel>
+
+			<ListBox.ItemTemplate>
+
+				<DataTemplate>
+					<!-- 这里定义每个列表项的外观 -->
+					<StackPanel Orientation="Vertical">
+						<!-- 使用Image控件来显示Bitmap -->
+						<Image Source="{Binding Image^}" Width="100" Height="100"/>
+						<!-- 你可以在这里添加其他控件，比如显示图片名称的TextBlock -->
+						<TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+					</StackPanel>
+				</DataTemplate>
+			</ListBox.ItemTemplate>
+		</ListBox>
+
+		<Button Content="选择文件夹并加载图片" Click="OnLoadImagesClick"/>
+		<!--<TextBox x:Name="导出路径"></TextBox>-->
+		<!-- 触发按钮 -->
+		<Button Click="OnSaveClick">保存选中</Button>
+		<Button Click="OnSaveAllClick">保存全部</Button>
+	</StackPanel>
+
+</UserControl>
