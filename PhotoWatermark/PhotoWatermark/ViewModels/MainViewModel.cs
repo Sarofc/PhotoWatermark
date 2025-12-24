@@ -6,6 +6,7 @@ using Avalonia.Platform.Storage;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Avalonia.Media.Imaging;
+using SixLabors.Fonts;
 
 namespace PhotoWatermark.ViewModels
 {
@@ -20,5 +21,9 @@ namespace PhotoWatermark.ViewModels
 
         [ObservableProperty]
         private Bitmap _previewImage;
+
+        public FontFamily SelectedFont { get; set; }
+
+        public List<FontFamily> FontFamilies { get; set; }
     }
 }

@@ -125,7 +125,7 @@ namespace PhotoWatermark.ViewModels
         static string NicifyModel(string model)
         {
             return model
-                .Replace("_2", "Ⅱ");
+                .Replace("Z5_2", "ℤ5Ⅱ");
         }
     }
 }

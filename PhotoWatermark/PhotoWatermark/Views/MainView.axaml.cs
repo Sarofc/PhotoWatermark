@@ -2,30 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
+using System.Numerics;
 using System.Threading.Tasks;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Media.Fonts;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using PhotoWatermark.Converters;
 using PhotoWatermark.ViewModels;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Drawing;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
+using VFont = SixLabors.Fonts.Font;
+using VFontFamily = SixLabors.Fonts.FontFamily;
 using VImage = SixLabors.ImageSharp.Image;
-using VSize = SixLabors.ImageSharp.Size;
 using VPoint = SixLabors.ImageSharp.Point;
-using System.Numerics;
-using Avalonia.Platform;
-using Avalonia.Controls.Shapes;
+using VSize = SixLabors.ImageSharp.Size;
+using VColor = SixLabors.ImageSharp.Color;
 
 namespace PhotoWatermark.Views
 {
@@ -36,6 +33,48 @@ namespace PhotoWatermark.Views
         public MainView()
         {
             InitializeComponent();
+        }
+
+        protected override void OnDataContextBeginUpdate()
+        {
+            base.OnDataContextBeginUpdate();
+            LoadFonts();
+        }
+
+        const string FontFile = "font.txt";
+
+        void LoadFonts()
+        {
+            VM.FontFamilies = SystemFonts.Collection.Families
+                .OrderBy(f => f.Name)
+                .ToList();
+            //Console.WriteLine(string.Join(", ", VM.FontFamilies));
+
+            var fontFamiliyName = LoadSelectFontName();
+            VM.SelectedFont = (VM.FontFamilies.FirstOrDefault(f => f.Name == fontFamiliyName));
+        }
+
+        static string LoadSelectFontName()
+        {
+            if (File.Exists(FontFile))
+            {
+                return File.ReadAllText(FontFile);
+            }
+            return "Arial Unicode MS";
+        }
+
+        static void SaveSelectFontName(string fontName)
+        {
+            File.WriteAllText(FontFile, fontName);
+        }
+
+        void FontFamilies_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (e.AddedItems.Count > 0 && e.AddedItems[0] is VFontFamily fontFamily)
+            {
+                //Console.WriteLine($"FontFamilies_SelectionChanged {fontFamily}");
+                SaveSelectFontName(fontFamily.Name);
+            }
         }
 
         private async Task<List<string>> GetImageFilesFromFolderAsync()
@@ -109,6 +148,7 @@ namespace PhotoWatermark.Views
         private async void OnSaveClick(object? sender, RoutedEventArgs e)
         {
             var imageToSave = VM.SelectedImage;
+            var fontFamily = VM.SelectedFont;
             if (imageToSave != null)
             {
                 var path = imageToSave.FilePath;
@@ -119,7 +159,7 @@ namespace PhotoWatermark.Views
                     Directory.CreateDirectory(directory);
                 var output = $"{directory}/{fileName}.watermark.JPG";
 
-                await SaveImageAsync(imageToSave, output);
+                await SaveImageAsync(imageToSave, fontFamily, output);
 
                 // TODO notification
             }
@@ -128,6 +168,7 @@ namespace PhotoWatermark.Views
         private async void OnSaveAllClick(object? sender, RoutedEventArgs e)
         {
             var iamges = VM.Images;
+            var fontFamily = VM.SelectedFont;
             if (Images != null)
             {
                 var tasks = new Task[iamges.Count];
@@ -143,7 +184,7 @@ namespace PhotoWatermark.Views
                         Directory.CreateDirectory(directory);
                     var output = $"{directory}/{fileName}.watermark.JPG";
 
-                    tasks[i] = Task.Run(() => SaveImageAsync(item, output));
+                    tasks[i] = Task.Run(() => SaveImageAsync(item, fontFamily, output));
                 }
 
                 await Task.WhenAll(tasks);
@@ -175,7 +216,7 @@ namespace PhotoWatermark.Views
 
                 // 3. 添加水印
                 //AddWatermarkGaussianBlur(vimage, imageData);
-                AddWatermarkClassic(vimage, imageData);
+                AddWatermarkClassic(vimage, imageData, VM.SelectedFont);
 
                 using var ms = new MemoryStream();
                 ms.Seek(0, SeekOrigin.Begin);
@@ -188,14 +229,14 @@ namespace PhotoWatermark.Views
             }
         }
 
-        static async Task SaveImageAsync(ImageData imageData, string output)
+        static async Task SaveImageAsync(ImageData imageData, VFontFamily fontFamily, string output)
         {
             // 1. 加载图片
             using var vimage = await VImage.LoadAsync(imageData.FilePath);
 
             // 3. 添加水印
             //AddWatermarkGaussianBlur(vimage, imageData);
-            AddWatermarkClassic(vimage, imageData);
+            AddWatermarkClassic(vimage, imageData, fontFamily);
 
             //4.保存图片
             vimage.Save(output, new JpegEncoder
@@ -208,7 +249,7 @@ namespace PhotoWatermark.Views
         }
 
 
-        static void AddWatermarkClassic(VImage image, ImageData imageData)
+        static void AddWatermarkClassic(VImage image, ImageData imageData, VFontFamily fontFamily)
         {
             System.Diagnostics.Debug.Assert(imageData != null);
 
@@ -230,16 +271,9 @@ namespace PhotoWatermark.Views
                 var newSize = new VSize(image.Width + paddingWidth, image.Height + paddingHeight);
                 ctx.Resize(newSize);
 
-                ctx.Fill(Color.White);
+                ctx.Fill(VColor.White);
 
                 ctx.DrawImage(foreground, new VPoint(paddingLeft, paddingTop), 1f);
-
-                // TODO 字体选择
-                //var fonts = new FontCollection();
-                //var fontFamily = fonts.Add("Arial");
-                //var fontFamily = SystemFonts.Get("Arial");
-                //var fontFamily = SystemFonts.Get("Times New Roman");
-                var fontFamily = SystemFonts.Get("Microsoft YaHei");
 
                 var dpi = (float)image.Metadata.VerticalResolution;
 
@@ -253,10 +287,10 @@ namespace PhotoWatermark.Views
                 //fondSize      = {fondSize}
                 //                ");
 
-                var fontModel = new Font(fontFamily, fondSize);
-                var fontLensModel = new Font(fontFamily, fondSize * 0.8f);
-                var fontParams = new Font(fontFamily, fondSize);
-                var fontDate = new Font(fontFamily, fondSize * 0.75f);
+                var fontModel = new VFont(fontFamily, fondSize);
+                var fontLensModel = new VFont(fontFamily, fondSize * 0.8f);
+                var fontParams = new VFont(fontFamily, fondSize);
+                var fontDate = new VFont(fontFamily, fondSize * 0.75f);
 
                 // 相机
                 // 镜头
@@ -270,7 +304,7 @@ namespace PhotoWatermark.Views
                     var modelTextSize = TextMeasurer.MeasureSize(modelText, modelOptions);
                     var modelPosition = new Vector2(paddingLeft, image.Height - paddingBottom / 2f - modelTextSize.Height / 1.5f);
                     modelOptions.Origin = modelPosition;
-                    ctx.DrawText(modelOptions, modelText, Color.Black);
+                    ctx.DrawText(modelOptions, modelText, VColor.Black);
 
                     var lensModelTextOptions = new RichTextOptions(fontLensModel)
                     {
@@ -280,7 +314,7 @@ namespace PhotoWatermark.Views
                     modelPosition.Y += modelTextSize.Height * 1.6f;
                     lensModelTextOptions.Origin = modelPosition;
                     var lensModeltext = $"{imageData.LensModel}";
-                    ctx.DrawText(lensModelTextOptions, lensModeltext, Color.Gray);
+                    ctx.DrawText(lensModelTextOptions, lensModeltext, VColor.Gray);
                 }
 
                 // 焦距 光圈 快门 iso
@@ -296,17 +330,17 @@ namespace PhotoWatermark.Views
                     var rightPosition = new Vector2(image.Width - rightExifSize.Width - paddingRight, image.Height - paddingBottom / 2 - rightExifSize.Height / 1.5f);
                     rightParamsOptions.Origin = rightPosition;
                     //Console.WriteLine($"{rightPosition} {rightExifSize}");
-                    ctx.DrawText(rightParamsOptions, rightExifText, Color.Black);
+                    ctx.DrawText(rightParamsOptions, rightExifText, VColor.Black);
 
                     var dateTimeTextOptions = new RichTextOptions(fontDate)
                     {
                         //Dpi = dpi,
                         VerticalAlignment = SixLabors.Fonts.VerticalAlignment.Center,
                     };
-                    rightPosition.Y += rightExifSize.Height * 1.4f;
+                    rightPosition.Y += rightExifSize.Height * 1.5f;
                     dateTimeTextOptions.Origin = rightPosition;
                     var dateText = $"{imageData.Date}";
-                    ctx.DrawText(dateTimeTextOptions, dateText, Color.Gray);
+                    ctx.DrawText(dateTimeTextOptions, dateText, VColor.Gray);
 
                     // logo
 #if true

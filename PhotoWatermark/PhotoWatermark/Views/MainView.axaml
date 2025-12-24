@@ -112,6 +112,17 @@
 		<!-- 触发按钮 -->
 		<Button Click="OnSaveClick">保存选中</Button>
 		<Button Click="OnSaveAllClick">保存全部</Button>
+		<ComboBox x:Name="fontComboBox" SelectedIndex="0"
+            Width="200" MaxDropDownHeight="300"
+            ItemsSource="{Binding FontFamilies}"
+            SelectedValue="{Binding SelectedFont}"
+			SelectionChanged="FontFamilies_SelectionChanged">
+			<ComboBox.ItemTemplate>
+				<DataTemplate>
+					<TextBlock Text="{Binding}" FontFamily="{Binding}" />
+				</DataTemplate>
+			</ComboBox.ItemTemplate>
+		</ComboBox>
 	</StackPanel>
 
 </UserControl>
